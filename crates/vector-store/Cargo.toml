@@ -1,0 +1,17 @@
+[package]
+name = "quake-vector-store"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+ruvector = ["ruvector-core", "rvf-index", "rvf-quant"]
+
+[dependencies]
+quake-vector-types = { path = "../types" }
+quake-vector-embedding = { path = "../embedding" }
+tracing = "0.1"
+serde = { version = "1", features = ["derive"] }
+ruvector-core = { version = "2.0.5", optional = true }
+rvf-index = { version = "0.1.0", optional = true, features = ["std"] }
+rvf-quant = { version = "0.1.0", optional = true }

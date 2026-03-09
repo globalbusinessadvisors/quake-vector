@@ -1,0 +1,18 @@
+[package]
+name = "quake-vector-container"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+quake-vector-types = { path = "../types" }
+quake-vector-ingestion = { path = "../ingestion" }
+quake-vector-embedding = { path = "../embedding" }
+quake-vector-store = { path = "../vector-store" }
+quake-vector-learning = { path = "../learning" }
+quake-vector-adaptation = { path = "../adaptation" }
+quake-vector-alert = { path = "../alert" }
+quake-vector-persistence = { path = "../persistence" }
+quake-vector-network = { path = "../network" }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+ed25519-dalek = { version = "2", features = ["rand_core"] }

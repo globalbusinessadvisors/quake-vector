@@ -1,0 +1,15 @@
+[package]
+name = "quake-vector-adaptation"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+ruvector = ["ruvector-sona"]
+
+[dependencies]
+quake-vector-types = { path = "../types" }
+quake-vector-learning = { path = "../learning" }
+tracing = "0.1"
+serde = { version = "1", features = ["derive"] }
+ruvector-sona = { version = "0.1.6", optional = true }

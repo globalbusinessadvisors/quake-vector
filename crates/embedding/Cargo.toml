@@ -1,0 +1,9 @@
+[package]
+name = "quake-vector-embedding"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+quake-vector-types = { path = "../types" }
+tracing = "0.1"
+rustfft = "6"
