@@ -1,0 +1,581 @@
+<html lang="en" class="antialiased"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neural Core Interface</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.7/dist/iconify-icon.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<!-- Three.js Import Map -->
+<script type="importmap">
+{
+"imports": {
+"three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+"three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+}
+}
+</script>
+<style>
+body {
+font-family: 'Space Grotesk', sans-serif;
+background-color: #030305;
+color: #ffffff;
+overflow-x: hidden;
+}
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #030305; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+.loader-hidden { opacity: 0; pointer-events: none; }
+.glass-panel {
+background: rgba(255, 255, 255, 0.03);
+backdrop-filter: blur(10px);
+border: 1px solid rgba(255, 255, 255, 0.05);
+}
+</style>
+<style>
+.glitch-target { will-change: transform, text-shadow; backface-visibility: hidden; } .glitch-active { animation: glitch-anim 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; } @keyframes glitch-anim { 0% { transform: translate(0); text-shadow: none; } 20% { transform: translate(-2px, 1px) skewX(-2deg); text-shadow: 2px 0 rgba(34, 211, 238, 0.3), -2px 0 rgba(255, 0, 170, 0.3); } 40% { transform: translate(2px, -1px) skewX(2deg); text-shadow: -2px 0 rgba(34, 211, 238, 0.3), 2px 0 rgba(255, 0, 170, 0.3); } 60% { transform: translate(-1px, 2px); } 100% { transform: translate(0); text-shadow: none; } }
+</style></head>
+  <body class="relative min-h-screen selection:bg-cyan-500 selection:text-black">
+    <!-- Loading Overlay -->
+    <div id="loader" class="fixed inset-0 z-50 flex items-center justify-center bg-[#030305] transition-opacity duration-1000">
+      <div class="flex flex-col items-center gap-4">
+        <div class="h-px w-24 bg-neutral-800 overflow-hidden relative">
+          <div class="absolute inset-0 bg-cyan-400 w-full -translate-x-full animate-[shimmer_1.5s_infinite]"></div>
+        </div>
+        <p class="text-xs uppercase tracking-[0.2em] text-neutral-500">
+          Initializing Core
+        </p>
+      </div>
+      <style>
+        @keyframes shimmer { 100% { transform: translateX(100%); } }
+      </style>
+    </div>
+
+    <!-- 3D Canvas Container -->
+    <div class="fixed inset-0 z-0">
+      <canvas id="webgl-canvas" class="w-full h-full outline-none cursor-auto" data-engine="three.js r160" width="2496" height="1898" style="width: 1248px; height: 949px;"></canvas>
+    </div>
+
+    <!-- UI Overlay -->
+    <div class="relative z-10 flex flex-col min-h-screen pointer-events-none">
+      <!-- Navigation -->
+      <header class="w-full px-6 py-6 flex justify-between items-center pointer-events-auto opacity-0 nav-item">
+        <div class="flex items-center gap-2 group cursor-pointer">
+          <div class="w-8 h-8 rounded-full border border-neutral-800 flex items-center justify-center bg-neutral-900/50 group-hover:border-cyan-500/50 transition-colors duration-300">
+            <span class="font-semibold text-sm tracking-tighter">N</span>
+          </div>
+          <span class="text-sm font-medium tracking-tight text-neutral-400 group-hover:text-white transition-colors glitch-target">
+            NEXUS
+          </span>
+        </div>
+
+        <nav class="hidden md:flex items-center gap-8 glass-panel py-2 rounded-full scale-[1.03] px-7 py-2.5">
+          <a href="#" class="uppercase tracking-widest text-neutral-400 hover:text-cyan-400 transition-colors text-sm">
+            Simulation
+          </a>
+          <a href="#" class="uppercase tracking-widest text-neutral-400 hover:text-cyan-400 transition-colors text-sm">
+            Network
+          </a>
+          <a href="#" class="uppercase tracking-widest text-neutral-400 hover:text-cyan-400 transition-colors text-sm">
+            Protocol
+          </a>
+        </nav>
+
+        <button class="group flex items-center gap-2 px-4 py-2 border border-neutral-800 rounded-lg hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-all duration-300">
+          <span class="text-xs font-medium text-neutral-300 group-hover:text-cyan-400">
+            Connect
+          </span>
+          <iconify-icon icon="solar:alt-arrow-right-linear" width="16" class="text-neutral-500 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all"></iconify-icon>
+        </button>
+      </header>
+
+      <!-- Hero Content -->
+      <main class="flex-grow flex flex-col justify-center px-6 md:px-12 lg:px-24 pointer-events-none">
+        <div class="max-w-4xl space-y-8">
+          <!-- Tagline -->
+          <div class="overflow-hidden">
+            <div class="hero-reveal flex items-center gap-3">
+              <span id="status-light" class="flex h-2 w-2 rounded-full bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.5)] transition-colors duration-300"></span>
+              <p id="status-text" class="text-xs md:text-sm uppercase tracking-[0.2em] text-cyan-400/80 font-medium transition-colors duration-300">
+                System Status: Online
+              </p>
+            </div>
+          </div>
+
+          <!-- Headline -->
+          <div class="space-y-2">
+            <div class="overflow-hidden">
+              <h1 class="hero-reveal text-5xl md:text-7xl lg:text-8xl font-medium tracking-tight leading-[0.9] text-white glitch-target">
+                Digital Matter
+              </h1>
+            </div>
+            <div class="overflow-hidden">
+              <h1 class="hero-reveal text-5xl md:text-7xl lg:text-8xl font-medium tracking-tight leading-[0.9] text-transparent bg-clip-text bg-gradient-to-r from-neutral-500 to-neutral-700 glitch-target">
+                Synthesis.
+              </h1>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="overflow-hidden max-w-lg">
+            <p class="hero-reveal text-sm md:text-base text-neutral-400 leading-relaxed font-light">
+              Experience the convergence of data and aesthetics. Click the core
+              to initiate particle disintegration sequence.
+            </p>
+          </div>
+
+          <!-- CTA Actions -->
+          <div class="overflow-hidden pt-4">
+            <div class="hero-reveal flex flex-wrap gap-4 pointer-events-auto">
+              <button class="relative group px-6 py-3 bg-white text-black rounded-lg overflow-hidden">
+                <div class="absolute inset-0 bg-cyan-400 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
+                <div class="relative flex items-center gap-2">
+                  <span class="text-sm font-semibold tracking-tight group-hover:text-black">
+                    Initialize
+                  </span>
+                  <iconify-icon icon="solar:play-linear" width="18"></iconify-icon>
+                </div>
+              </button>
+
+              <button class="group px-6 py-3 border border-neutral-800 rounded-lg hover:border-neutral-600 transition-colors bg-neutral-900/20 backdrop-blur-sm">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium text-neutral-300">
+                    Documentation
+                  </span>
+                  <iconify-icon icon="solar:file-text-linear" width="18" class="text-neutral-500 group-hover:text-white transition-colors"></iconify-icon>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Footer / HUD Elements -->
+      <footer class="pointer-events-auto nav-item grid grid-cols-3 opacity-0 w-full pt-8 pr-6 pb-8 pl-6 items-end">
+        <div class="flex flex-col gap-1">
+          <span class="text-[10px] uppercase tracking-widest text-neutral-600">
+            Coordinates
+          </span>
+          <span id="coords" class="text-xs font-mono text-cyan-400">0.38.0.00.00</span>
+        </div>
+
+        <div class="hidden sm:flex mb-0.5 gap-x-1.5 gap-y-1.5 items-center justify-center">
+          <button class="flex text-[10px hover:border-cyan-500/50 hover:text-cyan-400 transition-all duration-300 hover:shadow-[0_0_px_rgba(6,182,212,0.15)] cursor-pointer font-bold text-neutral-600 w-12 h-12 border-neutral-800/50 border rounded-sm items-center justify-center bg-white/15 text-neutral-200 border-neutral-700/60" onclick="window.location.href='/home'" role="button">
+            1
+          </button>
+          <button class="flex text-[10px hover:border-cyan-500/50 hover:text-cyan-400 transition-all duration-300 hover:shadow-[0_0_px_rgba(6,182,212,0.15)] cursor-pointer font-bold text-neutral-600 w-12 h-12 border-neutral-800/50 border rounded-sm items-center justify-center bg-white/15 text-neutral-200 border-neutral-700/60" onclick="window.location.href='/home2'" role="button">
+            2
+          </button>
+          <button class="flex text-[10px hover:border-cyan-500/50 hover:text-cyan-400 transition-all duration-300 hover:shadow-[0_0_px_rgba(6,182,212,0.15)] cursor-pointer font-bold text-neutral-600 w-12 h-12 border-neutral-800/50 border rounded-sm items-center justify-center bg-white/15 text-neutral-200 border-neutral-700/60" onclick="window.location.href='/home3'" role="button">
+            3
+          </button>
+          <button class="flex text-[10px hover:border-cyan-500/50 hover:text-cyan-400 transition-all duration-300 hover:shadow-[0_0_px_rgba(6,182,212,0.15)] cursor-pointer font-bold text-neutral-600 w-12 h-12 border-neutral-800/50 border rounded-sm items-center justify-center bg-white/15 text-neutral-200 border-neutral-700/60" onclick="window.location.href='/home4'" role="button">
+            4
+          </button>
+          <button class="flex text-[10px hover:border-cyan-500/50 hover:text-cyan-400 transition-all duration-300 hover:shadow-[0_0_px_rgba(6,182,212,0.15)] cursor-pointer font-bold text-neutral-600 w-12 h-12 border-neutral-800/50 border rounded-sm items-center justify-center bg-white/15 text-neutral-200 border-neutral-700/60" onclick="window.location.href='/home5'" role="button">
+            5
+          </button>
+          <button class="flex text-[10px hover:border-cyan-500/50 hover:text-cyan-400 transition-all duration-300 hover:shadow-[0_0_px_rgba(6,182,212,0.15)] cursor-pointer font-bold text-neutral-600 w-12 h-12 border-neutral-800/50 border rounded-sm items-center justify-center bg-white/15 text-neutral-200 border-neutral-700/60" onclick="window.location.href='/home6'" role="button">
+            6
+          </button>
+          <button class="flex text-[10px hover:border-cyan-500/50 hover:text-cyan-400 transition-all duration-300 hover:shadow-[0_0_px_rgba(6,182,212,0.15)] cursor-pointer font-bold text-neutral-600 w-12 h-12 border-neutral-800/50 border rounded-sm items-center justify-center bg-white/15 text-neutral-200 border-neutral-700/60" onclick="window.location.href='/home7'" role="button">
+            7
+          </button>
+          <button class="flex text-[10px hover:border-cyan-500/50 hover:text-cyan-400 transition-all duration-300 hover:shadow-[0_0_px_rgba(6,182,212,0.15)] cursor-pointer font-bold text-neutral-600 w-12 h-12 border-neutral-800/50 border rounded-sm items-center justify-center bg-white/15 text-neutral-200 border-neutral-700/60" onclick="window.location.href='/home8'" role="button">
+            8
+          </button>
+        </div>
+        <div class="flex gap-4 justify-self-end">
+          <a href="#" class="text-neutral-500 hover:text-white transition-colors">
+            <iconify-icon icon="solar:brand-github-linear" width="20"></iconify-icon>
+          </a>
+          <a href="#" class="text-neutral-500 hover:text-white transition-colors">
+            <iconify-icon icon="solar:brand-twitter-linear" width="20"></iconify-icon>
+          </a>
+        </div>
+      </footer>
+    </div>
+
+    <!-- Main Logic -->
+    <script type="module">
+      import * as THREE from 'three';
+      import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+      import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+      import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+      // --- Configuration ---
+      const config = {
+          colors: {
+              bg: 0x030305,
+              primary: 0x22d3ee, // Cyan-400
+              secondary: 0xff00aa, // Magenta
+              wireframe: 0x0f172a
+          }
+      };
+
+      // --- Scene Setup ---
+      const canvas = document.querySelector('#webgl-canvas');
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(config.colors.bg);
+      scene.fog = new THREE.FogExp2(config.colors.bg, 0.035);
+
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.z = 6;
+
+      const renderer = new THREE.WebGLRenderer({
+          canvas: canvas,
+          antialias: false,
+          powerPreference: "high-performance",
+          alpha: false
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.2;
+
+      // --- Objects Container ---
+      const mainGroup = new THREE.Group();
+      scene.add(mainGroup);
+
+      // --- 1. The Core (Solid) ---
+      const geometryCore = new THREE.IcosahedronGeometry(2, 10);
+      const materialCore = new THREE.MeshPhysicalMaterial({
+          color: 0x000000,
+          metalness: 0.9,
+          roughness: 0.1,
+          transmission: 0,
+          clearcoat: 1.0,
+          clearcoatRoughness: 0.1,
+          emissive: config.colors.primary,
+          emissiveIntensity: 0.05
+      });
+      const sphereCore = new THREE.Mesh(geometryCore, materialCore);
+      mainGroup.add(sphereCore);
+
+      // --- 2. The Wireframe ---
+      const geometryWire = new THREE.IcosahedronGeometry(2.2, 2);
+      const materialWire = new THREE.MeshBasicMaterial({
+          color: config.colors.primary,
+          wireframe: true,
+          transparent: true,
+          opacity: 0.15,
+          side: THREE.DoubleSide
+      });
+      const sphereWire = new THREE.Mesh(geometryWire, materialWire);
+      mainGroup.add(sphereWire);
+
+      // --- 3. Ambient Particles (Floating Data) ---
+      const particlesGeometry = new THREE.BufferGeometry();
+      const particlesCount = 200;
+      const posArray = new Float32Array(particlesCount * 3);
+      for(let i = 0; i < particlesCount * 3; i++) {
+          posArray[i] = (Math.random() - 0.5) * 10;
+      }
+      particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+      const particlesMaterial = new THREE.PointsMaterial({
+          size: 0.03,
+          color: config.colors.primary,
+          transparent: true,
+          opacity: 0.8,
+          blending: THREE.AdditiveBlending
+      });
+      const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+      scene.add(particlesMesh);
+
+      // --- 4. The Explosion System (Hidden initially) ---
+      const explosionCount = 5000;
+      const explosionGeo = new THREE.BufferGeometry();
+
+      // Buffers
+      const initialPos = new Float32Array(explosionCount * 3); // Shape of sphere
+      const targetPos = new Float32Array(explosionCount * 3);  // Exploded shape
+      const currentPos = new Float32Array(explosionCount * 3); // Animation state
+
+      const dummyObj = new THREE.Object3D();
+      const tempVec = new THREE.Vector3();
+
+      for(let i = 0; i < explosionCount; i++) {
+          // Generate point on sphere surface (radius 2)
+          const phi = Math.acos(-1 + (2 * i) / explosionCount);
+          const theta = Math.sqrt(explosionCount * Math.PI) * phi;
+
+          const r = 2.0; // Radius of core
+
+          const x = r * Math.cos(theta) * Math.sin(phi);
+          const y = r * Math.sin(theta) * Math.sin(phi);
+          const z = r * Math.cos(phi);
+
+          // Set initial (sphere) position
+          initialPos[i*3] = x;
+          initialPos[i*3+1] = y;
+          initialPos[i*3+2] = z;
+
+          // Set current defaults
+          currentPos[i*3] = x;
+          currentPos[i*3+1] = y;
+          currentPos[i*3+2] = z;
+
+          // Set target (exploded) position
+          // Direction is normalized position + some noise
+          const dir = new THREE.Vector3(x, y, z).normalize();
+          const dist = 2.0 + Math.random() * 6.0; // Expand to radius 2-8
+
+          targetPos[i*3] = dir.x * dist;
+          targetPos[i*3+1] = dir.y * dist;
+          targetPos[i*3+2] = dir.z * dist;
+      }
+
+      explosionGeo.setAttribute('position', new THREE.BufferAttribute(currentPos, 3));
+
+      const explosionMaterial = new THREE.PointsMaterial({
+          size: 0.04,
+          color: config.colors.primary,
+          transparent: true,
+          opacity: 0,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+      });
+
+      const explosionSystem = new THREE.Points(explosionGeo, explosionMaterial);
+      explosionSystem.visible = false;
+      mainGroup.add(explosionSystem);
+
+      // --- Lighting ---
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
+      scene.add(ambientLight);
+
+      const light1 = new THREE.PointLight(config.colors.primary, 400);
+      light1.position.set(4, 2, 4);
+      scene.add(light1);
+
+      const light2 = new THREE.PointLight(config.colors.secondary, 400);
+      light2.position.set(-4, -2, 2);
+      scene.add(light2);
+
+      // --- Post Processing ---
+      const renderScene = new RenderPass(scene, camera);
+      const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+      bloomPass.strength = 1.2;
+      bloomPass.radius = 0.5;
+      bloomPass.threshold = 0.1;
+
+      const composer = new EffectComposer(renderer);
+      composer.addPass(renderScene);
+      composer.addPass(bloomPass);
+
+      // --- Interactions & Animation State ---
+      let mouseX = 0, mouseY = 0;
+      let targetX = 0, targetY = 0;
+      const windowHalfX = window.innerWidth / 2;
+      const windowHalfY = window.innerHeight / 2;
+
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+      let isHovered = false;
+      let isExploded = false;
+      let isAnimating = false;
+
+      // Progress object for GSAP
+      const animState = { progress: 0 };
+
+      function updateExplosion() {
+          const positions = explosionGeo.attributes.position.array;
+
+          for(let i = 0; i < explosionCount; i++) {
+              const ix = i * 3;
+              const iy = i * 3 + 1;
+              const iz = i * 3 + 2;
+
+              // Simple Lerp
+              positions[ix] = initialPos[ix] + (targetPos[ix] - initialPos[ix]) * animState.progress;
+              positions[iy] = initialPos[iy] + (targetPos[iy] - initialPos[iy]) * animState.progress;
+              positions[iz] = initialPos[iz] + (targetPos[iz] - initialPos[iz]) * animState.progress;
+
+              // Add some twist/curl based on progress
+              if (animState.progress > 0.01) {
+                  const angle = animState.progress * 0.5; // Twist amount
+                  const x = positions[ix];
+                  const z = positions[iz];
+                  positions[ix] = x * Math.cos(angle) - z * Math.sin(angle);
+                  positions[iz] = x * Math.sin(angle) + z * Math.cos(angle);
+              }
+          }
+          explosionGeo.attributes.position.needsUpdate = true;
+      }
+
+      // --- Events ---
+      document.addEventListener('mousemove', (event) => {
+          mouseX = (event.clientX - windowHalfX);
+          mouseY = (event.clientY - windowHalfY);
+
+          // HUD
+          const xVal = (event.clientX / window.innerWidth).toFixed(2);
+          const yVal = (event.clientY / window.innerHeight).toFixed(2);
+          document.getElementById('coords').innerText = `${xVal}.${yVal}.00`;
+
+          // Raycaster Update
+          pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+          pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+          raycaster.setFromCamera(pointer, camera);
+          const intersects = raycaster.intersectObject(sphereCore);
+
+          if (intersects.length > 0) {
+              if (!isHovered) {
+                  document.body.style.cursor = 'pointer';
+                  gsap.to(sphereWire.scale, { x: 1.1, y: 1.1, z: 1.1, duration: 0.5 });
+                  gsap.to(sphereCore.material, { emissiveIntensity: 0.2, duration: 0.3 });
+                  isHovered = true;
+              }
+          } else {
+              if (isHovered) {
+                  document.body.style.cursor = 'default';
+                  gsap.to(sphereWire.scale, { x: 1, y: 1, z: 1, duration: 0.5 });
+                  gsap.to(sphereCore.material, { emissiveIntensity: 0.05, duration: 0.3 });
+                  isHovered = false;
+              }
+          }
+      });
+
+      // Click Handler - The Explosion Logic
+      window.addEventListener('click', () => {
+          if (isHovered && !isAnimating) {
+              isAnimating = true;
+              const statusLight = document.getElementById('status-light');
+              const statusText = document.getElementById('status-text');
+
+              // Visual Feedback on UI
+              statusLight.classList.remove('bg-cyan-500');
+              statusLight.classList.add('bg-red-500');
+              statusText.innerText = "Status: Critical";
+              statusText.classList.remove('text-cyan-400/80');
+              statusText.classList.add('text-red-400/80');
+
+              // 1. Hide Solid Mesh
+              gsap.to([sphereCore.material, sphereWire.material], {
+                  opacity: 0,
+                  duration: 0.2,
+                  onComplete: () => {
+                      sphereCore.visible = false;
+                      sphereWire.visible = false;
+                  }
+              });
+
+              // 2. Show Particles
+              explosionSystem.visible = true;
+              gsap.to(explosionMaterial, { opacity: 1, duration: 0.1 });
+
+              // 3. Explode Animation
+              gsap.to(animState, {
+                  progress: 1,
+                  duration: 1.5,
+                  ease: "power4.out",
+                  onUpdate: updateExplosion,
+                  onComplete: () => {
+                      // 4. Reform Animation (Auto after short delay)
+                      gsap.to(animState, {
+                          progress: 0,
+                          duration: 2,
+                          delay: 0.2,
+                          ease: "elastic.out(1, 0.5)",
+                          onUpdate: updateExplosion,
+                          onComplete: () => {
+                              // 5. Restore State
+                              sphereCore.visible = true;
+                              sphereWire.visible = true;
+
+                              // Fade out particles, Fade in core
+                              gsap.to(explosionMaterial, { opacity: 0, duration: 0.3 });
+                              gsap.to([sphereCore.material, sphereWire.material], {
+                                  opacity: 1, // Note: Wire uses basic mat, needs explicit value if changed
+                                  duration: 0.5
+                              });
+                              sphereWire.material.opacity = 0.15; // Reset wireframe opacity specific
+
+                              explosionSystem.visible = false;
+                              isAnimating = false;
+
+                              // Reset UI
+                              statusLight.classList.add('bg-cyan-500');
+                              statusLight.classList.remove('bg-red-500');
+                              statusText.innerText = "Status: Online";
+                              statusText.classList.add('text-cyan-400/80');
+                              statusText.classList.remove('text-red-400/80');
+                          }
+                      });
+                  }
+              });
+          }
+      });
+
+      // --- Animation Loop ---
+      const clock = new THREE.Clock();
+
+      function animate() {
+          const elapsedTime = clock.getElapsedTime();
+
+          targetX = mouseX * 0.001;
+          targetY = mouseY * 0.001;
+
+          // Rotation logic - group moves together
+          if (!isAnimating || animState.progress < 0.5) {
+              // Keep rotating during early explosion, stop at peak?
+              // Let's keep it rotating for dynamic feel
+              mainGroup.rotation.y += 0.002;
+              mainGroup.rotation.x += 0.001;
+          }
+
+          // Interactive tilt
+          mainGroup.rotation.y += 0.05 * (targetX - mainGroup.rotation.y);
+          mainGroup.rotation.x += 0.05 * (targetY - mainGroup.rotation.x);
+
+          // Wireframe breathing
+          if (!isAnimating) {
+              const scale = 1 + Math.sin(elapsedTime * 2) * 0.02;
+              sphereWire.scale.set(scale, scale, scale);
+          }
+
+          // Lights
+          light1.position.x = Math.sin(elapsedTime * 0.7) * 4;
+          light1.position.y = Math.cos(elapsedTime * 0.5) * 4;
+          light2.position.x = Math.cos(elapsedTime * 0.3) * 5;
+          light2.position.z = Math.sin(elapsedTime * 0.5) * 5;
+
+          // Background Particles
+          particlesMesh.rotation.y = elapsedTime * 0.05;
+          particlesMesh.rotation.x = -mouseY * 0.0002;
+
+          composer.render();
+          requestAnimationFrame(animate);
+      }
+
+      // --- Resize ---
+      window.addEventListener('resize', () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+          composer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      // --- Init ---
+      window.onload = () => {
+          animate();
+
+          const tl = gsap.timeline();
+
+          tl.to("#loader", {
+              opacity: 0,
+              duration: 0.8,
+              onComplete: () => { document.getElementById("loader").style.display = "none"; }
+          })
+          .from(sphereCore.scale, { x: 0, y: 0, z: 0, duration: 1.5, ease: "elastic.out(1, 0.7)" }, "-=0.5")
+          .from(sphereWire.scale, { x: 0, y: 0, z: 0, duration: 1.5, ease: "elastic.out(1, 0.7)" }, "<")
+          .to(".nav-item", { opacity: 1, y: 0, duration: 1, stagger: 0.1, ease: "power3.out" }, "-=1")
+          .from(".hero-reveal", { y: 100, opacity: 0, duration: 1.2, stagger: 0.1, ease: "power4.out" }, "-=0.8");
+      };
+    </script>
+
+    <script>
+      (function(){const t=document.querySelectorAll('.glitch-target');let lX=0,lY=0,lT=0;document.addEventListener('mousemove',e=>{const now=Date.now(),dt=now-lT;if(dt>30){const dx=e.clientX-lX,dy=e.clientY-lY,s=Math.sqrt(dx*dx+dy*dy)/dt;if(s>2.5){t.forEach(el=>{if(!el.classList.contains('glitch-active')){el.classList.add('glitch-active');setTimeout(()=>el.classList.remove('glitch-active'),250)}})}lX=e.clientX;lY=e.clientY;lT=now}})})()
+    </script>
+  
+</body></html>
